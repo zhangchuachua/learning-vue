@@ -1,0 +1,89 @@
+<script lang="ts" setup>
+import { ref, h } from 'vue'
+import {
+  TableV2FixedDir,
+  TableV2SortOrder,
+} from 'element-plus'
+
+import type { SortBy, Column } from "element-plus";
+
+const longText =
+    'Quaerat ipsam necessitatibus eum quibusdam est id voluptatem cumque mollitia.'
+const midText = 'Corrupti doloremque a quos vero delectus consequatur.'
+const shortText = 'Eius optio fugiat.'
+
+const textList = [shortText, midText, longText]
+
+// generate random number in range 0 to 2
+
+let id = 0
+
+const dataGenerator = () => ({
+  id: `random:${++id}`,
+  name: 'Tom',
+  date: '2016-05-03',
+  description: textList[Math.floor(Math.random() * 3)],
+})
+
+const columns: Column<any>[] = [
+  {
+    key: 'id',
+    title: 'Id',
+    dataKey: 'id',
+    width: 150,
+    sortable: true,
+    fixed: TableV2FixedDir.LEFT,
+  },
+  {
+    key: 'name',
+    title: 'Name',
+    dataKey: 'name',
+    width: 150,
+    align: 'center',
+  },
+  {
+    key: 'description',
+    title: 'Description',
+    dataKey: 'description',
+    width: 150,
+    cellRenderer: ({ cellData: description }) => (
+        h('div', { style: 'padding: 10px 0' }, description)
+    ),
+  },
+  {
+    key: 'operations',
+    title: 'Operations',
+    width: 150,
+    align: 'center',
+  },
+]
+const data = ref(
+    Array.from({ length: 200 })
+        .map(dataGenerator)
+        .sort((a, b) => (a.name > b.name ? 1 : -1))
+)
+
+const sort = ref<SortBy>({ key: 'name', order: TableV2SortOrder.ASC })
+
+const onColumnSort = (sortBy: SortBy) => {
+  const order = sortBy.order === 'asc' ? 1 : -1
+  const dataClone = [...data.value]
+  // @ts-ignore
+  dataClone.sort((a, b) => (a[sortBy.key] > b[sortBy.key] ? order : -order))
+  sort.value = sortBy
+  data.value = dataClone
+}
+</script>
+
+<template>
+  <el-table-v2
+      :columns="columns"
+      :data="data"
+      :sort-by="sort"
+      :estimated-row-height="40"
+      :width="700"
+      :height="400"
+      fixed
+      @column-sort="onColumnSort"
+  />
+</template>

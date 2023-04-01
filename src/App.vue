@@ -1,85 +1,55 @@
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { RouterView } from 'vue-router'
+import { ref, watchEffect } from "vue";
+
+const isDark = ref(true);
+
+watchEffect(() => {
+  if (isDark.value === true) document.documentElement.classList.add('dark');
+  else document.documentElement.classList.remove('dark');
+})
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+  <div class="w-full">
+    <el-container class="min-h-100vh">
+      <el-header class="b-b-#ccc b-b b-b-solid">
+        <el-row class="h-60px items-center">
+          <el-col :span="4" :offset="20">
+            <el-switch
+                v-model="isDark"
+                class="ml-2"
+                active-text="暗黑模式"
+                inactive-text="普通模式"
+                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+            />
+          </el-col>
+        </el-row>
+      </el-header>
+      <el-container>
+        <el-aside width="200px">
+          <el-menu :router="true" class="h-full select-none">
+            <el-sub-menu index="1">
+              <template #title>
+                <span>Navigator One</span>
+              </template>
+              <el-sub-menu index="1-4">
+                <template #title>item four</template>
+                <el-menu-item index="1-4-1">item one</el-menu-item>
+              </el-sub-menu>
+            </el-sub-menu>
+            <el-menu-item index="virtualized-table">
+              <span>虚拟化列表</span>
+            </el-menu-item>
+            <el-menu-item index="el-virtualized">
+              <span>el-虚拟化列表</span>
+            </el-menu-item>
+          </el-menu>
+        </el-aside>
+        <el-main>
+          <RouterView/>
+        </el-main>
+      </el-container>
+    </el-container>
+  </div>
 </template>
-
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
-</style>

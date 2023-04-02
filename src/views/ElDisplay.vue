@@ -46,9 +46,6 @@ const columns: Column<any>[] = [
     title: 'Description',
     dataKey: 'description',
     width: 150,
-    cellRenderer: ({ cellData: description }) => (
-        h('div', { style: 'padding: 10px 0' }, description)
-    ),
   },
   {
     key: 'operations',

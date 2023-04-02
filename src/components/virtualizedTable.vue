@@ -9,6 +9,11 @@ const generateColumns = (length = 10, prefix = 'column-', props?: any) =>
       width: 150,
     }))
 
+const longText =
+    'Quaerat ipsam necessitatibus eum quibusdam est id voluptatem cumque mollitia.'
+const midText = 'Corrupti doloremque a quos vero delectus consequatur.'
+const shortText = 'Eius optio fugiat.'
+
 const generateData = (
     columns: ReturnType<typeof generateColumns>,
     length = 200,
@@ -17,7 +22,10 @@ const generateData = (
     Array.from({ length }).map((_, rowIndex) => {
       return columns.reduce(
           (rowData, column, columnIndex) => {
-            rowData[column.dataKey] = `Row ${rowIndex} - Col ${columnIndex}`
+            let s = 'Row ';
+            if(rowIndex % 2 === 0) s = longText;
+            if(rowIndex % 7 === 0) s = midText;
+            rowData[column.dataKey] = `${s} ${rowIndex} - Col ${columnIndex}`
             return rowData
           },
           {
@@ -28,9 +36,9 @@ const generateData = (
     })
 
 const columns = generateColumns(10)
-const data = generateData(columns, 20)
+const data = generateData(columns, 1000)
 </script>
 
 <template>
-  <i-table :columns="columns" :data="data" />
+  <i-table :columns="columns" :data="data" :estimated-item-size="40" :width="150" />
 </template>

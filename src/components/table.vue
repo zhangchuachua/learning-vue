@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import type { Column } from "element-plus";
 import { computed, onMounted, onUpdated, ref, withDefaults } from "vue";
-import * as stream from "stream";
-import * as buffer from "buffer";
 
 interface TableData {
   id: string | number;
@@ -22,30 +20,27 @@ const props = withDefaults(defineProps<{
   rowHeight: 50,
   buffer: 3
 });
-
 const isDynamic = typeof props.estimatedItemSize === 'number' && !Number.isNaN(props.estimatedItemSize);
-
 const rowHeight = isDynamic ? props.estimatedItemSize : props.rowHeight;
 const width = props.columns.length * props.width;
+
 const height = ref(0);
+const start = ref(0);
+const rows = ref<HTMLDivElement[]>();
+
+const end = computed(() => start.value + 8 + props.buffer * 2);
+const translate = computed(() => {
+  return positionList[start.value].top
+})
+
 const positionList = props.data.map((item, index) => {
-  height.value += isDynamic ? props.estimatedItemSize : props.rowHeight;
-  const tempHeight = isDynamic ? props.estimatedItemSize : props.rowHeight
+  height.value += rowHeight;
   return {
     index,
     width: props.width,
-    height: tempHeight,
-    top: index * tempHeight,
+    height: rowHeight,
+    top: index * rowHeight,
   }
-})
-const start = ref(0);
-const end = computed(() => start.value + 8 + props.buffer * 2);
-const rows = ref<HTMLDivElement[]>();
-const translate = computed(() => {
-  if(start.value === 0) return 0;
-  return positionList.slice(0, start.value).reduce((a, b) => {
-    return a + b.height;
-  }, 0)
 })
 
 function handleScroll(e: Event) {
@@ -72,27 +67,21 @@ function binarySearch(scrollTop = 0) {
 
 function updated() {
   if (!isDynamic) return;
-  rows.value?.forEach((node, idx, arr) => {
+  console.log('updated')
+  rows.value?.forEach((node) => {
     const { index: i } = node.dataset;
     const index = parseInt(i as string);
     const item = positionList[index];
     const { height: prevHeight } = item;
     const { height: realRowHeight } = node.getBoundingClientRect();
-    const next = positionList[index + 1];
     if (prevHeight !== realRowHeight) {
       item.height = realRowHeight;
       const diff = realRowHeight - prevHeight;
       height.value += diff;
-      if (next) {
-        next.top = item.top + realRowHeight;
-      }
-    }
-
-    if (idx === arr.length - 1) {
       for (let i = index + 1; i < positionList.length; i++) {
         const prev = positionList[i - 1];
         const position = positionList[i];
-        position.top = prev ? prev.top + prev.height : 0;
+        position.top = prev.top + prev.height;
       }
     }
   })

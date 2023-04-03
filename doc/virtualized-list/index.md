@@ -92,6 +92,139 @@
 
 根据参考：解决动态高度的方法一般有三种：
 
-1. 对属性进行拓展，针对不同的 item 指定不同的高度；相当于依然是静态指定高度, 对于换行不适用； ahooks 的虚拟列表好像就是这样的做法
+1. 对属性进行拓展，针对不同的 item 指定不同的高度；相当于依然是静态指定高度, 对于换行不适用； ahooks 的虚拟列表好像是这样的做法
 2. 把 item 渲染到屏幕外，测量高度并缓存；不推荐，相当于渲染两次了；
-3. 使用`预估高度`先行渲染，然后获取真实高度并缓存；推荐这个做法，element-plus 是这样做的
+3. 使用`预估高度(estimatedItemHeight)`先行渲染，然后获取真实高度并缓存；推荐这个做法，element-plus 是这样做的
+
+---
+
+使用预估高度的办法，需要一个对象存储所有的 item 的实际高度；比如 `position = { index: number, height: number }` height 的初始值就可以设置为 estimatedItemHeight 的值；
+
+所以 inner 盒子的高度就是所有的 position.height 只和；然后在渲染完成后需要动态的为 position 更新为真实的 height，同时更新 inner 盒子的高度；
+
+所以还需要一个对应的函数，在 mounted 和 updated 生命周期时进行更新；**第一个难点就解决了；**
+
+```ts
+const positions = props.data.map((item, index) => {
+  height.value += baseHeight;// *初始化 inner 的高度
+  return { index, height: baseHeight }// *记录 item 的高度
+});
+
+function updatePositions() {
+  // rows 就是渲染出来的 row 列表
+  rows.value.forEach((el: HTMLDivElement, idx) => {
+    const index = el.dataset.index as string;
+    const i = parseInt(index);
+    const position = positions[i];
+    const { height: prevHeight } = position;
+    const { height: realHeight } = el.getBoundingClientRect();
+    // *如果前后两次的 height 不一样的话，那么就要更新 position 的 height 和 inner 的高度；
+    if (prevHeight !== realHeight) {
+      position.height = realHeight;
+      const diff = realHeight - prevHeight;
+      height.value += diff;
+    }
+  })
+}
+```
+
+滚动时如何计算 start 呢？其实与固定高度的差不多，也是用 scrollTop 去找；但是不再直接进行计算了，而是使用 position 对象
+
+position 对象中存储了元素真实的高度，那么遍历 position 对象，就可以计算出当前的 index；比如说：[40, 80, 120, 40] 现在已经滚动了 200px 了，那么 40 + 80 + 120 = 240 > 200 说明现在顶部依然时第三个元素；所以 start 就应该是 2(不考虑 buffer 时)；
+
+但是滚动事件触发的太频繁了，这个时候遍历计算，对性能影响较大；所以我们可以在获取「position 真实高度」时直接进行计算；比如说 第一个元素高度为 40，那么下一个元素的就会从 40 开始；第二个元素的高度为 80，那么下一个元素就会从 40 + 80 开始； 
+
+position 就变为了 `[{ height: 40, top: 0 }, { height: 80, top: 40 }, { height: 120, top: 120 }, { height: 40, top: 240 }]` 这样，就不再需要进行计算了，而是去找第一个 top 小于等于(<=) scrollTop 的索引，也就是 `{height: 120, top: 120}` 找的这个过程，可以使用二分搜索完成； **第二个难点也就完成了**
+
+那么第三个难点其实也很简单了，直接使用 start 的 position 的 top 即可;
+
+代码如下：
+
+```vue
+
+<script setup lang="ts">
+import {withDefaults, onMounted, onUpdated, ref, computed} from 'vue';
+
+const props = withDefaults(defineProps<{
+  data: any[],
+  width: 150,
+  rowHeight?: number,
+  estimatedItemHeight?: number,
+  buffer?: number,
+}>(), {
+  rowHeight: 50,
+  buffer: 3
+})
+const isDynamic = typeof props.estimatedItemHeight === 'number';
+const baseHeight = isDynamic ? props.estimatedItemHeight : props.rowHeight;
+const rows = ref();// 
+const height = ref(0);
+const start = ref(0);
+const end = computed(() => start.value + 8 + props.buffer * 2);
+const translate = computed(() => positions[start.value].top);
+const positions = props.data.map((item, index) => {
+  height.value += baseHeight;
+  return {index, height: baseHeight,}
+});
+
+function handleScroll(e: Event) {
+  const target = e.target as HTMLDivElement;
+  const {scrollTop} = target;
+  const index = binarySearch(scrollTop);
+  start.value = index >= props.buffer ? index - props.buffer : 0;
+}
+
+// *二分搜索，可以搜索目标值，也可以找到第一个大于，第一个小于的值；
+function binarySearch(scrollTop = 0) {
+  let l = 0;
+  let r = positions.length - 1;
+  while (l <= r) {
+    const mid = Math.floor((l + r) / 2);
+    const {top} = positions[mid];
+    if (top === scrollTop) return mid;
+    if (top > scrollTop) r = mid - 1;
+    else {
+      l = mid + 1;
+    }
+  }
+  return r;// 二分搜索，我们这里查找第一个小雨 scrollTop 的值
+}
+
+function updatePositions() {
+  if (!isDynamic) return;
+  rows.value.forEach((el: HTMLDivElement) => {
+    const index = el.dataset.index as string;
+    const i = parseInt(index);
+    const position = positions[i];
+    const {height: prevHeight} = position;
+    const {height: realHeight} = el.getBoundingClientRect();
+    // *如果前后两次的 height 不一样的话，那么就要更新 position 的 height 和 inner 的高度；
+    if (prevHeight !== realHeight) {
+      position.height = realHeight;// 纠正 row height
+      const diff = realHeight - prevHeight;
+      height.value += diff;// 纠正 inner height
+
+      for (let idx = i + 1; idx < positions.length; idx++) {
+        const prevP = positions[idx - 1];
+        const cntP = positions[idx];
+        cntP.top = prevP.top + prevP.height;// 后续的 top 都会受到影响
+      }
+    }
+  })
+}
+
+// 挂载时触发
+onMounted(updatePositions)
+// DOM 更新时触发
+onUpdated(updatePositions)
+</script>
+<template>
+  <div class="overflow-auto w-full h-400px">
+    <div class="" :style="`height: ${height}`" id="inner">
+      <div :style="`transform: translate(0, ${translate}px)`" id="list">
+        <div v-for="(row, index) in props.data.slice(start, end)" :data-index="index + start" ref="rows"></div>
+      </div>
+    </div>
+  </div>
+</template>
+```

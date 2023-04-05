@@ -228,3 +228,13 @@ onUpdated(updatePositions)
   </div>
 </template>
 ```
+
+### 使用 intersectionObserve 进行优化
+
+虚拟列表的原理是什么？
+
+在没有缓冲区的情况下，就是顶部的数据被滚动出去了，就让它消失，填充一个 translate；然后底部添加一条新的数据即可；
+
+而 intersectionObserve 就可以监听数据是否在视口中，当顶部不再视口中时，我们可以进行操作
+
+但是 intersectionObserve 有问题，就是它是异步的，是宏任务, 这个观察器的优先级特别低，只有其他任务执行完成后，才会执行观察器；所以可能会出现回调没有执行的问题；所以在使用的时候需要注意是否可以接受这个问题；

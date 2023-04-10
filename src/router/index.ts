@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import Login from '@/views/LoginView.vue'
 import VirtualizedTable from '@/components/virtualizedTable.vue'
 import ElDisplay from "@/views/ElDisplay.vue";
+import UploadFiles from "@/views/UploadFiles.vue";
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -20,6 +21,11 @@ const router = createRouter({
       path: '/el-virtualized',
       name: 'el-virtualized',
       component: ElDisplay
+    },
+    {
+      path: '/upload-files',
+      name: 'upload-files',
+      component: UploadFiles
     }
   ]
 })

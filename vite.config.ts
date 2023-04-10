@@ -6,7 +6,7 @@ import { presetIcons, presetUno } from 'unocss'
 import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
-import svgLoader from 'vite-svg-loader';
+import svgLoader from 'vite-svg-loader'
 import vueJsx from '@vitejs/plugin-vue-jsx'
 import vue from '@vitejs/plugin-vue'
 
@@ -14,11 +14,11 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [
     vue(),
-    UnoCSS({ presets: [presetUno(), presetIcons({ cdn: 'https://esm.sh' })] }),
-    AutoImport({ resolvers: [ElementPlusResolver()] }),
-    Components({ resolvers: [ElementPlusResolver()] }),
     svgLoader(),
-    vueJsx()
+    vueJsx(),
+    UnoCSS({ presets: [presetUno(), presetIcons({ cdn: 'https://esm.sh' })] }),
+    AutoImport({ resolvers: [ElementPlusResolver()], eslintrc: { enabled: true } }),
+    Components({ resolvers: [ElementPlusResolver()] })
   ],
   resolve: {
     alias: {

@@ -44,6 +44,9 @@ watchEffect(() => {
             <el-menu-item index="el-virtualized">
               <span>el-虚拟化列表</span>
             </el-menu-item>
+            <el-menu-item index="upload-files">
+              <span>上传大文件</span>
+            </el-menu-item>
           </el-menu>
         </el-aside>
         <el-main>

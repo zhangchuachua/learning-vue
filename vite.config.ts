@@ -14,9 +14,12 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [
     vue(),
-    svgLoader(),
     vueJsx(),
-    UnoCSS({ presets: [presetUno(), presetIcons({ cdn: 'https://esm.sh' })] }),
+    svgLoader(),
+    UnoCSS({
+      presets: [presetUno(), presetIcons({ cdn: 'https://esm.sh/' })],
+      shortcuts: { 'flex-center': 'flex justify-center items-center' }
+    }),
     AutoImport({ resolvers: [ElementPlusResolver()], eslintrc: { enabled: true } }),
     Components({ resolvers: [ElementPlusResolver()] })
   ],

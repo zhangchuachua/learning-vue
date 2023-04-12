@@ -9,6 +9,7 @@ export {}
 
 declare module '@vue/runtime-core' {
   export interface GlobalComponents {
+    BaseUpload: typeof import('./src/components/Upload/BaseUpload.vue')['default']
     ElAside: typeof import('element-plus/es')['ElAside']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElButtonGr: typeof import('element-plus/es')['ElButtonGr']
@@ -34,8 +35,10 @@ declare module '@vue/runtime-core' {
     IconTooling: typeof import('./src/components/icons/IconTooling.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    Single: typeof import('./src/components/Upload/Single.vue')['default']
     Table: typeof import('./src/components/table.vue')['default']
     TheWelcome: typeof import('./src/components/TheWelcome.vue')['default']
+    UploadSingle: typeof import('./src/components/Upload/UploadSingle.vue')['default']
     VirtualizedTable: typeof import('./src/components/virtualizedTable.vue')['default']
     WelcomeItem: typeof import('./src/components/WelcomeItem.vue')['default']
   }

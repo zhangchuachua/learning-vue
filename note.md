@@ -1,5 +1,17 @@
 # note
 
+## volar 类型提示不正确
+
+在项目中使用了 unplugin-auto-import, unplugin-vue-components 发现虽然生成了对应的 d.ts 但是在使用的时候类型提示全部都是 any
+
+在 [volar](https://github.com/vuejs/language-tools/issues/2231) 发现了类似的 issue，发现可能是因为 pnpm 安装，导致  '@vue/runtime-core' 并没有在 node_modules 所以提示会有问题；
+
+解决方法就是：使用 `declare module 'vue'` 替代 `declare module '@vue/runtime-core'`
+
+按理来说使用 yarn 也可以解决问题
+
+安装 '@vue/runtime-core' 作为依赖也可以解决问题
+
 ## vue3 不知道的点
 
 ### 定义全局变量

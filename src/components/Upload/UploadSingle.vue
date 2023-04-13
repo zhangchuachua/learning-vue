@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import BaseUpload from './BaseUpload.vue';
 import { ref, getCurrentInstance } from 'vue'
 import { bitToMb } from '@/utils/utils'
 

@@ -20,8 +20,8 @@ export default defineConfig({
       presets: [presetUno(), presetIcons({ cdn: 'https://esm.sh/' })],
       shortcuts: { 'flex-center': 'flex justify-center items-center' }
     }),
-    AutoImport({ resolvers: [ElementPlusResolver()], eslintrc: { enabled: true } }),
-    Components({ resolvers: [ElementPlusResolver()] })
+    AutoImport({ resolvers: [ElementPlusResolver()], eslintrc: { enabled: true }, dts: './src/auto-imports.d.ts' }),
+    Components({ resolvers: [ElementPlusResolver()], dts: './src/components.d.ts' })
   ],
   resolve: {
     alias: {

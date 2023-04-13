@@ -12,6 +12,6 @@
     }
   ],
   "compilerOptions": {
-    "types": ["unplugin-vue-macros/macros-global"]
+    "types": ["./src/auto-imports.d.ts", "./src/components.d.ts"]
   }
 }

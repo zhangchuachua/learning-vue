@@ -1,7 +1,8 @@
 <script lang="ts">
-type BaseInput = Omit<HTMLInputElement, 'hidden | type | multiple'>
+type BaseInput = Partial<Omit<HTMLInputElement, 'hidden | type | multiple | onclick'>>
 
 export interface BaseUploadProps {
+  appendFile?: boolean
   multiple?: boolean
   inputProps?: BaseInput
   uploading?: boolean
@@ -9,14 +10,15 @@ export interface BaseUploadProps {
 }
 
 export interface BaseUploadEmits {
-  inputClick?: (e: Event) => void
-  input?: (e: Event) => void
-  submit?: (e: Event) => Promise<void>
-  remove?: (obj: RemoveParam, e: Event) => void
-  getInput?: (el: HTMLInputElement) => void
+  (e: 'input-click', event: Event): void
+  (e: 'input', event: Event): void
+  (e: 'submit', event: Event): Promise<void>
+  (e: 'remove', obj: RemoveParam, event: Event): void
+  (e: 'get-input', el: HTMLInputElement): void
+  (e: 'append', event: Event): void
 }
 
-interface RemoveParam {
+export interface RemoveParam {
   file: File
   index: number
 }
@@ -27,43 +29,44 @@ import { ref } from 'vue'
 
 withDefaults(defineProps<BaseUploadProps>(), {
   multiple: false,
-  uploading: false
+  uploading: false,
+  appendFile: false
 })
 
-const { input: emitInput, getInput, inputClick, submit, remove } =
-  defineEmits<BaseUploadEmits>()
+const emit = defineEmits<BaseUploadEmits>()
 
 const input = ref<HTMLInputElement | null>(null)
+const appendInput = ref<HTMLInputElement | null>(null)
 
 function handleChoose(e: Event) {
   if (input.value) {
     // 点击按钮时，函数触发 input 的点击
     input.value?.click()
   }
-  if (inputClick) inputClick(e)
+  emit('input-click', e)
 }
 
 function handleUploadChange(e: Event) {
-  if (emitInput) {
-    emitInput(e)
-  }
+  emit('input', e)
+}
+
+function handleAppend(e: Event) {
+  emit('append', e)
 }
 
 async function handleSubmit1(e: Event) {
-  if (submit) {
-    await submit(e)
-  }
+  await emit('submit', e)
 }
 
 function handleRemove(obj: RemoveParam, e: Event) {
   // *要想清空 input file 的文件, 不能直接清空 files 属性；正确的做法是清空 value 值
-  if (remove) remove(obj, e)
+  emit('remove', obj, e)
 }
 
 function handleRef(el: Element | ComponentPublicInstance | null) {
   if (el) {
     input.value = el as HTMLInputElement
-    if (getInput) getInput(el as HTMLInputElement)
+    emit('get-input', el as HTMLInputElement)
   }
 }
 </script>
@@ -82,9 +85,19 @@ function handleRef(el: Element | ComponentPublicInstance | null) {
         hidden
         @input="handleUploadChange"
       />
+      <input type="file" ref="appendInput" v-bind="inputProps" :multiple="multiple" hidden @input="handleAppend" />
       <el-row>
         <el-col :span="24">
           <el-button @click="handleChoose" :disabled="uploading"> 选择文件 </el-button>
+          <el-button
+            v-if="appendFile"
+            @click="
+              () => {
+                if (appendInput) appendInput.click()
+              }
+            "
+            >添加文件</el-button
+          >
           <el-button type="success" @click="handleSubmit1" :disabled="!files" :loading="uploading">
             上传到服务器
           </el-button>
@@ -95,20 +108,20 @@ function handleRef(el: Element | ComponentPublicInstance | null) {
           <div v-if="files && files.length">
             <ul>
               <li
-                class="text-sm c-#aaa flex items-center"
+                class="text-sm c-#aaa flex items-center justify-between"
                 v-for="(file, index) in files"
                 :key="file.name"
               >
-                <span>{{ file.name }}</span>
+                <span class="w-90% mr-5px truncate">{{ file.name }}</span>
                 <i
-                  class="i-ic-twotone-remove-circle-outline ml-1em transition-all duration-300 hover:i-ic-baseline-remove-circle"
+                  class="i-ic-twotone-remove-circle-outline transition-all duration-300 hover:i-ic-baseline-remove-circle"
                   @click="handleRemove({ file, index }, $event)"
                 />
               </li>
             </ul>
           </div>
           <p v-else class="mb-0 text-0.8em c-#aaa">
-            只能上传 png, jpeg, jpg 格式文件，且文件大小必须在 2M 以内
+            <slot name="tips"> </slot>
           </p>
         </el-col>
       </el-row>

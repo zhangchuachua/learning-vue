@@ -12,6 +12,26 @@
 
 安装 '@vue/runtime-core' 作为依赖也可以解决问题
 
+新的进展：在 unplugin-vue-component 的github 上发现了[解决方案](https://juejin.cn/post/7189812753366777915), 具体到原理可以看 [pnpm](https://pnpm.io/zh/npmrc#public-hoist-pattern)
+
+## 如何修改 file input？
+
+要想清空 file input，可以直接清空 input 的 value:  `input.value = ''`;
+
+如果 file input 可以多选，我们又只需要清除选择的部分文件呢？此时不能修改 input 的 value 了，因为多选的 file input 的value 是第一个文件的 name；也就是说 value 只包含了一个文件；
+
+所以只能修改 input 的 files，但是 files 是 FileList 类型的，只是可读性的，不能修改它的值；
+
+所以直接对 input 的 files 重新赋值了，但是 FileList 也不能通过 new 的方式创建，不能进行初始化；这个时候可以使用 [DataTransfer](https://developer.mozilla.org/zh-CN/docs/Web/API/DataTransfer) 代替；
+
+```js
+const dataTransfer = new DataTransfer();
+files.forEach(file => {
+  dataTransfer.items.add(file);
+})
+input.value.files = dataTransfer.files;// 注意使用的是 dataTransfer.files 这个才是 FileList 类型
+```
+
 ## vue3 不知道的点
 
 ### 定义全局变量
@@ -117,5 +137,19 @@ type BaseInput = Omit<HTMLInputElement, 'hidden | file'>
 </script>
 <script setup lang="ts">
 const props = defineProps<{ inputRef: Ref<UnwrapRef<HTMLInputElement | null>>, inputProps: BaseInput }>()
+</script>
+```
+
+### vue3 如何注册事件
+
+注册事件使用 defineEmit 方法，下面说一下 defineEmit 方法如何使用
+
+```vue
+<script setup lang='ts'>
+// 这样就是声明了一个 event-name 的事件，那么父组件就可以使用 @event-name 传入事件处理函数；
+const emit = defineEmit<{ (e: 'event-name', el: Element, e: Event) }>();
+
+// 这样就可以触发事件
+emit('event-name', el, e);
 </script>
 ```

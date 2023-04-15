@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
-import { ref, watchEffect } from "vue";
+import { ref, watchEffect } from 'vue'
 
-const isDark = ref(true);
+const isDark = ref(true)
 
 watchEffect(() => {
-  if (isDark.value === true) document.documentElement.classList.add('dark');
-  else document.documentElement.classList.remove('dark');
+  if (isDark.value === true) document.documentElement.classList.add('dark')
+  else document.documentElement.classList.remove('dark')
 })
 </script>
 
@@ -17,11 +17,11 @@ watchEffect(() => {
         <el-row class="h-60px items-center">
           <el-col :span="4" :offset="20">
             <el-switch
-                v-model="isDark"
-                class="ml-2"
-                active-text="暗黑模式"
-                inactive-text="普通模式"
-                style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
+              v-model="isDark"
+              class="ml-2"
+              active-text="暗黑模式"
+              inactive-text="普通模式"
+              style="--el-switch-on-color: #13ce66; --el-switch-off-color: #ff4949"
             />
           </el-col>
         </el-row>
@@ -50,7 +50,7 @@ watchEffect(() => {
           </el-menu>
         </el-aside>
         <el-main>
-          <RouterView/>
+          <RouterView />
         </el-main>
       </el-container>
     </el-container>

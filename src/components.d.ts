@@ -26,6 +26,7 @@ declare module '@vue/runtime-core' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     Table: typeof import('./components/table.vue')['default']
+    UploadMulti: typeof import('./components/Upload/UploadMulti.vue')['default']
     UploadSingle: typeof import('./components/Upload/UploadSingle.vue')['default']
     VirtualizedTable: typeof import('./components/virtualizedTable.vue')['default']
   }

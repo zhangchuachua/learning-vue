@@ -32,6 +32,116 @@ files.forEach(file => {
 input.value.files = dataTransfer.files;// 注意使用的是 dataTransfer.files 这个才是 FileList 类型
 ```
 
+## 后端如何对上传的文件进行去重
+
+因为没有做过后端，只能参考 GPT 的回答：
+
+在Node.js后端中对上传的文件进行去重，可以采用以下步骤：
+
+获取上传的文件的内容或者哈希值，可以使用Node.js内置的crypto模块计算文件的哈希值。
+
+将哈希值保存到数据库中或者其他持久化存储中，作为唯一标识符。
+
+在上传新文件之前，先查询数据库或者其他持久化存储中是否已经存在相同的哈希值，如果存在，则说明该文件已经上传过，可以直接忽略；如果不存在，则可以继续上传。
+
+如果需要在上传过程中实现去重，可以在上传文件之前先检查文件名或者文件大小是否与已上传的文件相同，如果相同，则可以直接忽略，否则继续上传。
+
+需要注意的是，如果两个文件的内容相同，则它们的哈希值也相同。因此，使用哈希值对文件进行去重是一种可靠的方法。但是，如果两个文件的内容不同，但是哈希值相同的情况也是存在的（被称为哈希碰撞），因此需要选择一个哈希算法，以确保哈希碰撞的概率尽可能小。
+
+---
+
+在 Node.js 中，我们可以通过计算上传文件的哈希值并与数据库中存储的哈希值进行比较来实现文件去重。以下是一个简单的示例，展示了如何使用 Node.js 和 Express 处理上传的文件并进行去重：
+
+1. 安装必要的 npm 包：
+
+```bash
+npm install express multer crypto
+```
+
+这将安装 Express（一个流行的 Node.js Web 框架）、Multer（一个用于处理 multipart/form-data 的中间件，通常用于上传文件）和 Crypto（一个 Node.js 核心模块，用于处理哈希和加密）。
+
+2. 创建一个名为 `app.js` 的文件，并添加以下代码：
+
+```javascript
+// 导入所需的模块
+const express = require('express');
+const multer = require('multer');
+const crypto = require('crypto');
+const fs = require('fs');
+
+// 初始化 Express 应用
+const app = express();
+
+// 初始化 Multer，配置临时文件存储
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, './uploads');
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+
+const upload = multer({ storage: storage });
+
+// 模拟一个数据库，用于存储文件哈希值
+const fileHashDatabase = new Set();
+
+// 用于计算文件哈希值的函数
+function calculateFileHash(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
+
+    stream.on('data', (data) => {
+      hash.update(data);
+    });
+
+    stream.on('end', () => {
+      resolve(hash.digest('hex'));
+    });
+
+    stream.on('error', (error) => {
+      reject(error);
+    });
+  });
+}
+
+// 处理文件上传的路由
+app.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    const filePath = req.file.path;
+    const fileHash = await calculateFileHash(filePath);
+
+    if (fileHashDatabase.has(fileHash)) {
+      fs.unlinkSync(filePath);
+      res.status(409).send('文件已存在，已执行去重操作');
+    } else {
+      fileHashDatabase.add(fileHash);
+      res.status(200).send('文件上传成功');
+    }
+  } catch (error) {
+    res.status(500).send('服务器发生错误');
+  }
+});
+
+// 启动服务器
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+```
+
+这个示例中，我们使用 Multer 处理上传的文件，并将其存储在 `./uploads` 目录中。然后，我们使用 `calculateFileHash` 函数计算文件的 SHA-256 哈希值。接着，我们检查哈希值是否已存在于 `fileHashDatabase` 中（一个简单的 Set 数据结构用来模拟数据库）。如果哈希值已存在，我们删除文件并返回一个 409 状态码，表示文件已存在。否则，我们将哈希值添加到数据库中，并返回 200 状态码，表示文件上传成功。
+
+要运行此示例，请确保在项目根目录下创建一个名为 `uploads` 的文件夹，然后运行 `node app.js`。你可以使用 Postman 或类似工具测试文件上传和去重功能。
+
+
+## 后端如何转 base64
+
+node 转换 base64 只需要使用 `Buffer.from(base64, 'base64')` 即可转换为二进制；随后就可以使用 `fs.writeFileSync(path, img)` 存储
+
+但是有一个注意的点：在使用 Buffer 转换之前需要先把 `data:image/png;base64` 这样的一段去掉才可以；
 ## vue3 不知道的点
 
 ### 定义全局变量

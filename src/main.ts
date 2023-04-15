@@ -15,8 +15,6 @@ const app = createApp(App)
 // vue3 不推荐使用 prototype 进行挂载, 可以使用 app.config.globalProperties
 app.config.globalProperties.$http = axios
 
-console.log(app.config.globalProperties)
-
 app.use(createPinia())
 app.use(router)
 

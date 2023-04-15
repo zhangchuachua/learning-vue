@@ -85,7 +85,14 @@ function handleRef(el: Element | ComponentPublicInstance | null) {
         hidden
         @input="handleUploadChange"
       />
-      <input type="file" ref="appendInput" v-bind="inputProps" :multiple="multiple" hidden @input="handleAppend" />
+      <input
+        type="file"
+        ref="appendInput"
+        v-bind="inputProps"
+        :multiple="multiple"
+        hidden
+        @input="handleAppend"
+      />
       <el-row>
         <el-col :span="24">
           <el-button @click="handleChoose" :disabled="uploading"> 选择文件 </el-button>

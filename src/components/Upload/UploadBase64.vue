@@ -51,7 +51,10 @@ async function handleSubmit() {
   await new Promise<{ filename: string; base64: string }[]>((resolve) => {
     const base64List: { filename: string; base64: string }[] = []
     files.value!.forEach((file) => {
+      // *每一个 FileReader 只能读取一个文件，也就是说当我们有一个 fileList 时，我们需要对每一个 file 都 new 一个 FileReader
       const temp = new FileReader()
+      // *可以使用 FileReader 读取为 base64 DataURL 就是 base64
+      // *如果要做缩略图的话，就可以将 base64 赋值给 img.src 即可的到缩略图
       temp.readAsDataURL(file)
       temp.onload = function () {
         const len = base64List.push({

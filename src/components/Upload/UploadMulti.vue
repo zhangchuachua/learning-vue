@@ -53,6 +53,7 @@ async function handleSubmit() {
   files.value?.forEach((item) => {
     formData.append('img', item)
   })
+  // *
   try {
     const { data } = await upload('/upload/multiple', formData)
 

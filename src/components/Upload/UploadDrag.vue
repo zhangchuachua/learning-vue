@@ -30,7 +30,6 @@
 </template>
 
 <script setup lang="ts">
-import { isFirefox } from 'element-plus/es/utils'
 import { ref } from 'vue'
 
 const input = ref<HTMLInputElement | null>(null)

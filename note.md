@@ -14,6 +14,8 @@
 
 新的进展：在 unplugin-vue-component 的 github 上发现了[解决方案](https://juejin.cn/post/7189812753366777915), 具体到原理可以看 [pnpm](https://pnpm.io/zh/npmrc#public-hoist-pattern)
 
+更新的进展：参照 https://github.com/vuejs/vitepress/blob/main/.npmrc 修改；提升所有的依赖
+
 ## 如何修改 file input？
 
 要想清空 file input，可以直接清空 input 的 value: `input.value = ''`;
@@ -225,19 +227,74 @@ fetch(...).then(response => {
 >
 > 推测是因为：files 只在拖拽时和丢下那一瞬间存在，丢下之后，将会重新赋值，所以查看不到；
 
+---
+
+实现拖拽期间的样式效果；
+
+在拖拽文件到指定元素时，为元素添加一个样式；比如说，边框变成实线，且颜色变成 `c-amber`
+
+其实很简单，就声明一个 `dragging` 在拖拽进入时，赋值为 `true` 离开或放下时赋值为 false 即可；但是有一个问题：那就是如果进入了子元素，那么就会首先触发子元素的 `dragenter` 事件，然后冒泡给父元素的 `dragenter` 事件，接着触发父元素的 `dragleave` 事件；所以就不能直接在 `dragleave` 事件中将 `dragging` 赋值为 `false`；因为会先触发子元素的 `dragenter` 所以我们可以搞一个 `dragenter dragleave` 的计数器，进入就 +1 离开就 -1，具体代码如下
+
+解决后的具体代码如下:
+
+```ts
+const dragging = ref<boolean>(false);
+// 计数器，drag 的层级
+const enterCount = ref<number>(0);
+function handleDragEnter() {
+  enterCount.value += 1
+  dragging.value = true
+}
+
+function handleDragLeave() {
+  enterCount.value -= 1
+  if (enterCount.value <= 0) dragging.value = false
+}
+```
+
+## 多文件上传
+
+多文件上传，主要有两种方法：
+
+1. 多个文件分别使用一个请求，循环请求一个接口
+2. 将多个文件放在一个 formData 中，只使用一个请求
+
+具体使用哪种方法，应该视情况而定；
+
+使用一个请求的好处：
+
+1. 节约服务器性能
+2. 当文件数量不多，文件大小也不大时，处理速度很快
+
+使用多个请求的好处：
+
+1. 可以添加更多请求参数，丰富请求；因为单个文件使用单个请求，所以请求时可以添加其他的与文件对应的请求
+2. 当文件数量较多时，可以使用多个请求分批进行上传
+3. 当文件大小较大时，可以将大文件进行切片，分批上传；避免请求时间太长，请求失败导致的问题；提高上传的可靠性
+
 ## 大文件上传
 
 参考
 
 1. [转转](https://juejin.cn/post/7110121072032219166)
+2. [可以作为额外的知识点-使用 wasm 优化切片和计算 hash 值的速度](https://juejin.cn/post/7221003401996091429)
 
 ---
 
 大文件上传主要有三个重点：
 
 1. 格式校验：可以使用魔数进行校验，魔数通常是一些常数，这些常数被用来表示一些特定的含义，比如文件的类型；对于某些类型文件的头部的字节序列是固定的，我们可以比较这几个字节，从而判断文件类型；但是需要注意，使用魔数判断类型不是完全正确的，比如：文件头部的字节被修改了；或者是两种不同的文件使用了相同的魔数；都会造成判断的类型有误；
-2. 文件切片：
-3. 断点续传 + 秒传
+2. 文件切片
+   1. 文件切片很好实现，直接使用 Blob 对象上的 slice 函数即可，因为 File 是 Blob 的子类，所以 File 对象也可以直接使用 slice
+   2. slice 与 Array 和 String 的 slice 一样，需要两个参数：`start & end`;
+   3. 大概的流程是：首先确定需要拆分的 size, 假如需要拆分为 1mb 大小的 Blob 那么 `size = 1 * 1024 * 1000;` 然后计算 `count = Math.ceil(fileSize / size)` 然后就可以进入循环分割 file；`array.push(file.slice(count * size, (count + 1) * size))` 最后即可获得分割的 Blob 列表；  注意：一个大文件的分片可能也会相当的耗费性能，所以可以使用 webWorker 在后台进行分片这是一个优化的策略；
+   4. 接着需要计算 hash，根据上面的 *两个参考* 都不是在分片前计算 hash 的，而是在分片完成后，再将 Blob 逐个 append 到 MD5 中，最后计算 hash 的；这样的性能应该会好一点，所以我也这样做；
+3. 断点续传 + 秒传 (都需要后端配合)
+   1. 所谓的秒传，其实就是在上传前，请求一下后端，查看这个文件是否上传过，如果上传过，则直接返回上传成功；
+   2. 断点续传则是上传过文件，但是有一部分切片上传失败了，那么只需要上传还未上传的切片即可，于是后端返回上传成功的切片 name，前端拿到后，计算得到未上传的切片进行上传；这就是断点续传
+   3. 上传时，可以使用多线程进行上传；但是在一定要控制并发量；
+
+TODO 需要探索后端如何拼接切片文件
 
 ## vue3 不知道的点
 

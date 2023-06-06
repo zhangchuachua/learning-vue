@@ -1,5 +1,5 @@
 <script lang="ts">
-type BaseInput = Partial<Omit<HTMLInputElement, 'hidden | type | multiple | onclick'>>
+type BaseInput = Partial<Omit<InputHTMLAttributes, 'hidden | type | multiple | onclick'>>
 
 export interface BaseUploadProps {
   appendFile?: boolean
@@ -24,7 +24,7 @@ export interface RemoveParam {
 }
 </script>
 <script setup lang="ts">
-import type { ComponentPublicInstance } from 'vue'
+import type { ComponentPublicInstance, InputHTMLAttributes } from 'vue'
 import { ref } from 'vue'
 
 withDefaults(defineProps<BaseUploadProps>(), {

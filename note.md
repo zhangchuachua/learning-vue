@@ -14,7 +14,7 @@
 
 新的进展：在 unplugin-vue-component 的 github 上发现了[解决方案](https://juejin.cn/post/7189812753366777915), 具体到原理可以看 [pnpm](https://pnpm.io/zh/npmrc#public-hoist-pattern)
 
-更新的进展：参照 https://github.com/vuejs/vitepress/blob/main/.npmrc 修改；提升所有的依赖
+更新的进展：参照 [vitePress 官方配置](https://github.com/vuejs/vitepress/blob/main/.npmrc)修改；提升所有的依赖
 
 ## 如何修改 file input？
 
@@ -281,19 +281,71 @@ function handleDragLeave() {
 
 ---
 
-大文件上传主要有三个重点：
+**大文件上传主要有三个重点：**
 
-1. 格式校验：可以使用魔数进行校验，魔数通常是一些常数，这些常数被用来表示一些特定的含义，比如文件的类型；对于某些类型文件的头部的字节序列是固定的，我们可以比较这几个字节，从而判断文件类型；但是需要注意，使用魔数判断类型不是完全正确的，比如：文件头部的字节被修改了；或者是两种不同的文件使用了相同的魔数；都会造成判断的类型有误；
-2. 文件切片
-   1. 文件切片很好实现，直接使用 Blob 对象上的 slice 函数即可，因为 File 是 Blob 的子类，所以 File 对象也可以直接使用 slice
-   2. slice 与 Array 和 String 的 slice 一样，需要两个参数：`start & end`;
-   3. 大概的流程是：首先确定需要拆分的 size, 假如需要拆分为 1mb 大小的 Blob 那么 `size = 1 * 1024 * 1000;` 然后计算 `count = Math.ceil(fileSize / size)` 然后就可以进入循环分割 file；`array.push(file.slice(count * size, (count + 1) * size))` 最后即可获得分割的 Blob 列表；  注意：一个大文件的分片可能也会相当的耗费性能，所以可以使用 webWorker 在后台进行分片这是一个优化的策略；
-   4. 接着需要计算 hash，根据上面的 *两个参考* 都不是在分片前计算 hash 的，而是在分片完成后，再将 Blob 逐个 append 到 MD5 中，最后计算 hash 的；这样的性能应该会好一点，所以我也这样做；
-3. 断点续传 + 秒传 (都需要后端配合)
-   1. 所谓的秒传，其实就是在上传前，请求一下后端，查看这个文件是否上传过，如果上传过，则直接返回上传成功；
-   2. 断点续传则是上传过文件，但是有一部分切片上传失败了，那么只需要上传还未上传的切片即可，于是后端返回上传成功的切片 name，前端拿到后，计算得到未上传的切片进行上传；这就是断点续传
-   3. 上传时，可以使用多线程进行上传；但是在一定要控制并发量；
+### 格式校验
 
+可以使用魔数进行校验，魔数通常是一些常数，这些常数被用来表示一些特定的含义，比如文件的类型；对于某些类型文件的头部的字节序列是固定的，我们可以比较这几个字节，从而判断文件类型；但是需要注意，使用魔数判断类型不是完全正确的，比如：文件头部的字节被修改了；或者是两种不同的文件使用了相同的魔数；都会造成判断的类型有误；
+
+### 文件切片
+
+文件切片很好实现，直接使用 Blob 对象上的 slice 函数即可，因为 File 是 Blob 的子类，所以 File 对象也可以直接使用 slice, slice 与 Array 和 String 的 slice 一样，需要两个参数：`start & end`;
+
+大概的流程是：
+
+- 首先确定需要拆分的 size, 假如需要拆分为 1mb 大小的 Blob 那么 `size = 1 * 1024 * 1000;`
+- 然后计算 `count = Math.ceil(fileSize / size)` 然后就可以进入循环分割 file: `array.push(file.slice(count * size, (count + 1) * size))`
+- 最后即可获得分割的 Blob 列表；
+
+> 注意：一个大文件的分片可能也会相当的耗费性能，所以可以使用 webWorker 在后台进行分片这是一个优化的策略；
+
+在进行切片的同时也可以计算 hash 因为计算 hash 需要读取切片的二进制数据，读取二进制数据是一个异步的过程，并且将一个大文件拆分问小文件进行读取和计算，反而会优化性能。
+
+```ts
+async function bigFileSplit(file: File) {
+  // *针对大文件就需要进行切片处理；
+  // *主要有两种切法：一是固定切片数量，二是固定切片大小；
+  // *切法也主要视情况而定：切片数量太大因为 js 是单线程会导致切片缓慢；切片体积太大会导致上传时间太长；  但是切片数量这个问题可以使用 webWorker 新开一个线程进行切片操作；于是在这里我选择固定切片体积；
+  // *还可以再切片的同时去获取二进制数据，然后计算 hash 因为获取二进制数据这一部分是异步的，所以可以优化性能
+  // 使用 webWorker 需要新建 js 文件，为了方便这里没有使用 webWorker
+  const maxSize = 1 * 1024 * 1000
+  const spark = new SparkMD5.ArrayBuffer();
+  const chunks: Blob[] = [];
+  const promiseList: Promise<any>[] = [];
+
+  function split(count: number) {
+    const chunk = file.slice(count * maxSize, ++count * maxSize);
+    if (chunk.size > 0) {
+      chunks.push(chunk);
+      // !arrayBuffer 是异步操作，如果直接使用 await 的话，将会阻塞下一个 split
+      // !于是我将这里的 Promise 全部放到一个数组中，然后在下面使用 Promise.all 等待所有的 append 完成，这样即将异步和同步分开了，即代表了 split 完成，可以直接 end 了；不再需要计算分片的数量 count 了
+
+      // !注意，我这里是直接添加了 then, 那么在读取成功后，就会直接 append, 不用等到 all 的时候再循环 append；这里的 then 虽然没有返回值，并不会影响到 Promise.all 这一块就需要用到 Promise 的源码了；
+      // !then 没有返回值，所以相当于是一个 Promise { undefined }; 并且 Promise.all 即使传入的不是 Promise 它内部也会尽量转换为 Promise, 比如 Promise.all([1]) 就会转换为 Promise { 1 }
+      promiseList.push(chunk.arrayBuffer().then((arrayBuffer) => spark.append(arrayBuffer)))
+      split(count);
+    }
+  }
+
+  split(0);
+
+  const hash = await Promise.all(promiseList).then(() => spark.end());
+
+  return {
+    hash,
+    chunks,
+  };
+}
+```
+
+### 断点续传 + 秒传 (都需要后端配合)
+
+所谓的秒传，其实就是在上传前，请求一下后端，查看这个文件是否上传过，如果上传过，则直接返回上传成功；
+
+断点续传则是上传过文件，但是有一部分切片上传失败了，那么只需要上传还未上传的切片即可，于是后端返回上传成功的切片 name，前端拿到后，计算得到未上传的切片进行上传；这就是断点续传
+
+上传时，可以使用多线程进行上传；但是在一定要控制并发量；
+  
 TODO 需要探索后端如何拼接切片文件
 
 ## vue3 不知道的点

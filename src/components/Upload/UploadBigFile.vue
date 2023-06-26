@@ -29,7 +29,10 @@
 import { ref, watchEffect } from 'vue'
 import SparkMD5 from 'spark-md5'
 import { bitToMb } from '@/utils/utils'
-import { upload } from '@/utils/axios'
+import http, { upload } from '@/utils/axios'
+import type { ExistResponse } from '@/types/response'
+
+// TODO 使用 range 完成一次断点续传
 
 const input = ref<HTMLInputElement | null>(null)
 const files = ref<File[] | null>(null)
@@ -108,8 +111,21 @@ async function handleSubmit() {
 
   for (let i of bigFileList) {
     const { hash, chunks } = await bigFileSplit(i);
-    const formData = new FormData();
+    // *在进行上传之前，请求 API 判断之前是否已经上传过相同的文件，如果上传过，那么服务器端将直接返回上传成功，这就是秒传；
+    const { data: { status, data } } = await http.post<ExistResponse>('/upload/big-file/exist', { hash, filename: i.name, })
 
+    if (status === 'success') {
+      const { isExist } = data;
+
+      if (isExist) {
+        console.log('exist');
+        continue;
+      } else if (Array.isArray(chunks) && chunks.length) {
+        // TODO 断点续传
+      } else {
+        // TODO 完整的切片上传
+      }
+    }
   }
 
 }
@@ -125,23 +141,27 @@ async function bigFileSplit(file: File) {
   const chunks: Blob[] = [];
   const promiseList: Promise<any>[] = [];
 
-  function split(count: number) {
+  async function split(count: number): Promise<string> {
     const chunk = file.slice(count * maxSize, ++count * maxSize);
     if (chunk.size > 0) {
+      // *最开始的想法
+      // *因为 chunk.arrayBuffer 函数是一个异步函数，如果使用 await 将会阻塞下一次 split，所以开始想的是，不使用 await，而是直接使用一个 then 当 arrayBuffer 读取完成时，进行 append: chunk.arrayBuffer().then(buffer => spark.append(buffer))
+      // *因为都是异步的，所以在还需要一个 await 保证所有的 chunk 都进行读取了，所以使用了 promiseList 存储读取的 promise; promise.push(chunk.arrayBuffer().then(buffer => spark.append(buffer))) 最后使用一个 Promise.all(promiseList).then(() => spark.end()) 就可以获取 hash 了；
+      // *这样的好处是 chunk.arrayBuffer 不会阻塞下一次 split，相当于 split(0) 这个递归函数完成后，就已经开始读取所有的 chunk.arrayBuffer 了，并且在递归函数结束前，可能有部分 arrayBuffer 已经读取完成了；
+      // *但是这样有一个问题：那就是所有的 chunk.arrayBuffer 同时读取，那么是无法保证顺序的；一旦顺序出错，就会导致 hash 错误；
+      // !而且经过实测，性能并没有提升多少，对于一个 140mb 的文件，只是提升了几十 ms 所以放弃了哪个方法，直接使用了 await 的方式;
       chunks.push(chunk);
-      // !arrayBuffer 是异步操作，如果直接使用 await 的话，将会阻塞下一个 split
-      // !于是我将这里的 Promise 全部放到一个数组中，然后在下面使用 Promise.all 等待所有的 append 完成，这样即将异步和同步分开了，即代表了 split 完成，可以直接 end 了；不再需要计算分片的数量 count 了
-
-      // !注意，我这里是直接添加了 then, 那么在读取成功后，就会直接 append, 不用等到 all 的时候再循环 append；这里的 then 虽然没有返回值，并不会影响到 Promise.all 这一块就需要用到 Promise 的源码了；
-      // !then 没有返回值，所以相当于是一个 Promise { undefined }; 并且 Promise.all 即使传入的不是 Promise 它内部也会尽量转换为 Promise, 比如 Promise.all([1]) 就会转换为 Promise { 1 }
-      promiseList.push(chunk.arrayBuffer().then((arrayBuffer) => spark.append(arrayBuffer)))
-      split(count);
+      spark.append(await chunk.arrayBuffer());
+      return split(count);
     }
+    return spark.end();
   }
+
+  const hash = await split(0);
 
   split(0);
 
-  const hash = await Promise.all(promiseList).then(() => spark.end());
+  // const hash = await Promise.all(promiseList).then(() => spark.end());
 
   return {
     hash,

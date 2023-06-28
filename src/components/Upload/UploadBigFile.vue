@@ -28,7 +28,7 @@
 <script setup lang="ts">
 import { ref, watchEffect } from 'vue'
 import SparkMD5 from 'spark-md5'
-import { bitToMb } from '@/utils/utils'
+import { bitToMb, asyncPool } from '@/utils/utils'
 import http, { upload } from '@/utils/axios'
 import type { ExistResponse } from '@/types/response'
 
@@ -121,13 +121,29 @@ async function handleSubmit() {
         console.log('exist');
         continue;
       } else if (Array.isArray(chunks) && chunks.length) {
-        // TODO 断点续传
+        console.log('断点续传');
       } else {
-        // TODO 完整的切片上传
+        asyncPool(3, chunks.map((chunk, index) => {
+          return {
+            chunk,
+            index
+          }
+        }), ({ chunk, index }) => {
+          const formData = new FormData();
+          formData.append('chunk', chunk);
+          formData.append('index', '' + index);
+          formData.append('filename', i.name);
+          formData.append('hash', hash);
+          return upload('/upload/big-file/single', formData);
+        }).then(() => {
+          return http.post(`/upload/big-file/merge/${hash}`)
+        }).then(() => {
+          ElMessage.success('上传成功')
+        })
       }
     }
-  }
 
+  }
 }
 
 async function bigFileSplit(file: File) {

@@ -115,30 +115,37 @@ async function handleSubmit() {
     const { data: { status, data } } = await http.post<ExistResponse>('/upload/big-file/exist', { hash, filename: i.name, })
 
     if (status === 'success') {
-      const { isExist } = data;
+      const { isExist, chunks: existedChunks } = data;
+      console.log(data);
 
       if (isExist) {
         console.log('exist');
         continue;
-      } else if (Array.isArray(chunks) && chunks.length) {
-        console.log('断点续传');
       } else {
+        console.log(existedChunks);
         asyncPool(3, chunks.map((chunk, index) => {
+
           return {
             chunk,
             index
           }
         }), ({ chunk, index }) => {
           const formData = new FormData();
-          formData.append('chunk', chunk);
+          // !注意，这里的顺序，应该最后 append chunk 因为服务器端使用 multer 解析二进制文件，一旦解析到二进制文件就会进入对应的回调函数，决定存储的路径、名称等；此时后面的 formData 都是没有被 bodyParser 解析的，所以无法使用后面 append 的属性；
+
+          // !如下顺序，在解析到 chunk 时就可以使用 index, filename, hash 等数据了
           formData.append('index', '' + index);
           formData.append('filename', i.name);
           formData.append('hash', hash);
+          formData.append('chunk', chunk);
           return upload('/upload/big-file/single', formData);
-        }).then(() => {
-          return http.post(`/upload/big-file/merge/${hash}`)
-        }).then(() => {
-          ElMessage.success('上传成功')
+        }).then((data) => {
+          console.log('single', data);
+          return http.post<any>(`/upload/big-file/merge`, { hash, filename: i.name, })
+        }).then(({ data }) => {
+          if (data?.success)
+            ElMessage.success('上传成功')
+          else ElMessage.error('上传失败')
         })
       }
     }

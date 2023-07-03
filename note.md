@@ -604,7 +604,34 @@ TODO 还可以使用 http range 头实现断点续传
 
 1. `/big-file/exist` 用于确定将要上传的文件是否已经存在与服务器端；
 2. `/big-file/chunk` 用于接收上传的切片，因为服务器端并不能确定切片的数量，所以不能直接定义 multer 的文件数量，所以使用一个路由单独、重复接收切片；并且如果我们要并发上传，肯定也需要一个路由单独接收切片；
+   - 注意：如果使用 koa 的话，那么使用的解析二进制文件的库是 @koa/multer，而不是 multer，我因为引错库导致报错浪费了不少时间
+   - 注意：上传二进制文件肯定使用的都是 formData，并且还可以向 formData 中追加其他数据，如果在解析二进制文件时需要使用到这些数据（比如文件名，hash等），那么需要注意 formData 中数据的顺序；因为解析到文件时，在文件后面的 append 的数据是还没被解析的，也就无法使用；
+   - 注意：bodyParser 根本无法解析 formData 所以在解析文件时，其实是 @koa/multer 在解析，此时解析到哪个就是哪个
 3. `/big-file/merge` 上传完成时用于合并这些切片；因为是并发上传，所以服务器端并不知道何时上传完成，需要前端控制合并时机；
+   - 合并文件的思路：首先肯定是定义两个变量：切片文件的路径，合成后文件的路径；然后需要使用 createWriteStream 创建一个写入流，接着就需要遍历切片文件，然后读取切片文件（可以使用读取流，也可以使用 fs.readFileSync）；读取完成后，需要将 buffer 添加到写入流中；遍历完成后，关闭写入流就可以了；还是比较简单的；
+
+合并文件的代码：
+
+```js
+async function concatFile(sourcePath, destPath) {
+  if (!fs.existsSync(sourcePath)) throw new Error(`sourcePath isn\`t a directory sourcePath: ${sourcePath}`);
+  if (!fs.statSync(sourcePath).isDirectory()) throw new Error(`sourcePath isn\`t a directory sourcePath: ${sourcePath}`);
+
+  const sorted = fs.readdirSync(sourcePath).filter((index) => { return !isNaN(index) }).sort((a, b) => a - b);
+
+  const ws = createWriteStream(destPath);
+  for (const index of sorted) {
+    const chunkPath = join(sourcePath, index);
+    const chunk = fs.readFileSync(chunkPath);
+    await ws.write(chunk);
+    fs.unlink(chunkPath, (err) => {
+      if (err) throw err;
+    });
+  }
+
+  ws.end().close();
+}
+```
 
 其实这些操作一个路由应该也可以完成，但是分成三个耦合性更低，更不容易出错；
 
@@ -634,18 +661,13 @@ TODO 还可以使用 http range 头实现断点续传
 
 #### nodejs 如何判断是文件还是文件夹
 
-可以获取对应路径的 stat
-
-但是获取对应路径的 stat 就有三种方法，和他们对应的同步方法：
-
-    // *statSync 同步获取文件或文件夹的状态
-    // *类似的还有 lstatSnc, fstatSync
-    // 区别参考：https://stackoverflow.com/questions/32478698/what-is-the-different-between-stat-fstat-and-lstat-functions-in-node-js
-    // https://segmentfault.com/a/1190000000370264
+可以获取对应路径的 stat, 但是获取对应路径的 stat 就有三种方法，和他们对应的同步方法：
 
 1. `fs.stat() ｜ fs.statSync()`
 2. `fs.lstat() | fs.lstatSync()`
 3. `fs.fstat() | fs.fstatSync()`
+
+statSync 同步获取文件或文件夹的状态,类似的还有 lstatSnc, fstatSync
 
 他们的区别请参考：
 

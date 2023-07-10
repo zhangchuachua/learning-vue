@@ -676,6 +676,10 @@ statSync 同步获取文件或文件夹的状态,类似的还有 lstatSnc, fstat
 
 获取到 stat 后，就可以使用 `stat.isFile()` | `stat.isDirectory()` 判断到底是文件还是文件夹
 
+#### koa 支持 range
+
+使用 [koa-range](https://www.npmjs.com/package/koa-range) 即可支持
+
 ## vue3 不知道的点
 
 ### 定义全局变量

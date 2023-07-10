@@ -32,8 +32,6 @@ import { bitToMb, asyncPool } from '@/utils/utils'
 import http, { upload } from '@/utils/axios'
 import type { ExistResponse } from '@/types/response'
 
-// TODO 使用 range 完成一次断点续传
-
 const input = ref<HTMLInputElement | null>(null)
 const files = ref<File[] | null>(null)
 const dragging = ref<boolean>(false)
@@ -192,7 +190,6 @@ async function bigFileSplit(file: File) {
   };
 }
 
-// TODO 完成多线程的 chunk 上传； chunk 上传应该注意线程池，最多不要超过 6 个；formData 中除了二进制外，还应该携带 hash 与 index 不然后端无法进行拼接；
 async function chunksUpload({ hash, chunks }: Awaited<ReturnType<typeof bigFileSplit>>) {
 
 }
